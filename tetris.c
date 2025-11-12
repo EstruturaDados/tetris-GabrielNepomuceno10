@@ -3,6 +3,7 @@
 #include <time.h>
 
 #define TAMANHO_FILA 5
+#define TAMANHO_PILHA 3
 
 // Estrutura da peça
 struct Peca {
@@ -18,6 +19,12 @@ struct Fila {
     int total;
 };
 
+// Estrutura da pilha
+struct Pilha {
+    struct Peca pecas[TAMANHO_PILHA];
+    int topo;
+};
+
 // Função para gerar uma nova peça aleatória
 struct Peca gerarPeca(int id) {
     struct Peca nova;
@@ -27,11 +34,16 @@ struct Peca gerarPeca(int id) {
     return nova;
 }
 
-// Função para inicializar a fila
+// Inicializa a fila
 void inicializarFila(struct Fila *fila) {
     fila->inicio = 0;
     fila->fim = 0;
     fila->total = 0;
+}
+
+// Inicializa a pilha
+void inicializarPilha(struct Pilha *pilha) {
+    pilha->topo = -1;
 }
 
 // Verifica se a fila está cheia
@@ -44,7 +56,17 @@ int filaVazia(struct Fila *fila) {
     return fila->total == 0;
 }
 
-// Enfileirar (inserir peça no final)
+// Verifica se a pilha está cheia
+int pilhaCheia(struct Pilha *pilha) {
+    return pilha->topo == TAMANHO_PILHA - 1;
+}
+
+// Verifica se a pilha está vazia
+int pilhaVazia(struct Pilha *pilha) {
+    return pilha->topo == -1;
+}
+
+// Enfileirar (adiciona peça no final)
 void enfileirar(struct Fila *fila, struct Peca nova) {
     if (filaCheia(fila)) {
         printf("A fila esta cheia! Nao e possivel adicionar nova peca.\n");
@@ -55,7 +77,7 @@ void enfileirar(struct Fila *fila, struct Peca nova) {
     fila->total++;
 }
 
-// Desenfileirar (remover peça da frente)
+// Desenfileirar (remove peça da frente)
 struct Peca desenfileirar(struct Fila *fila) {
     struct Peca removida = {'-', -1};
 
@@ -71,7 +93,32 @@ struct Peca desenfileirar(struct Fila *fila) {
     return removida;
 }
 
-// Exibir o estado atual da fila
+// Empilhar (reservar peça)
+void empilhar(struct Pilha *pilha, struct Peca nova) {
+    if (pilhaCheia(pilha)) {
+        printf("A pilha de reserva esta cheia! Nao e possivel guardar mais pecas.\n");
+        return;
+    }
+    pilha->topo++;
+    pilha->pecas[pilha->topo] = nova;
+    printf("Peca %c (ID %d) reservada com sucesso.\n", nova.nome, nova.id);
+}
+
+// Desempilhar (usar peça reservada)
+struct Peca desempilhar(struct Pilha *pilha) {
+    struct Peca removida = {'-', -1};
+
+    if (pilhaVazia(pilha)) {
+        printf("A pilha de reserva esta vazia! Nenhuma peca para usar.\n");
+        return removida;
+    }
+
+    removida = pilha->pecas[pilha->topo];
+    pilha->topo--;
+    return removida;
+}
+
+// Exibir a fila
 void exibirFila(struct Fila *fila) {
     printf("\n--- Fila de Pecas Futuras ---\n");
 
@@ -89,13 +136,31 @@ void exibirFila(struct Fila *fila) {
     printf("-----------------------------\n");
 }
 
+// Exibir a pilha
+void exibirPilha(struct Pilha *pilha) {
+    printf("\n--- Pilha de Pecas Reservadas ---\n");
+
+    if (pilhaVazia(pilha)) {
+        printf("Pilha vazia.\n");
+        return;
+    }
+
+    for (int i = pilha->topo; i >= 0; i--) {
+        printf("Posicao %d -> Peca: %c | ID: %d\n", i + 1,
+               pilha->pecas[i].nome, pilha->pecas[i].id);
+    }
+    printf("-------------------------------\n");
+}
+
 int main() {
     struct Fila fila;
+    struct Pilha pilha;
     int opcao;
     int proximoId = 1;
 
     srand(time(NULL));
     inicializarFila(&fila);
+    inicializarPilha(&pilha);
 
     // Inicializa a fila com 5 peças
     for (int i = 0; i < TAMANHO_FILA; i++) {
@@ -103,32 +168,41 @@ int main() {
     }
 
     do {
-        printf("\n===== TETRIS STACK - FILA DE PECAS =====\n");
-        printf("1. Visualizar fila\n");
-        printf("2. Jogar peca (remover da frente)\n");
-        printf("3. Inserir nova peca\n");
+        printf("\n===== TETRIS STACK - NIVEL AVENTUREIRO =====\n");
+        printf("1. Jogar peca (remover da frente da fila)\n");
+        printf("2. Reservar peca (guardar na pilha)\n");
+        printf("3. Usar peca reservada (retirar da pilha)\n");
         printf("0. Sair\n");
-        printf("========================================\n");
+        printf("============================================\n");
         printf("Escolha uma opcao: ");
         scanf("%d", &opcao);
 
         switch (opcao) {
-            case 1:
-                exibirFila(&fila);
-                break;
-
-            case 2: {
+            case 1: {
                 struct Peca jogada = desenfileirar(&fila);
                 if (jogada.id != -1) {
                     printf("Peca jogada: %c | ID: %d\n", jogada.nome, jogada.id);
+                    enfileirar(&fila, gerarPeca(proximoId++)); // mantém a fila sempre cheia
                 }
                 break;
             }
 
-            case 3:
-                enfileirar(&fila, gerarPeca(proximoId++));
-                printf("Nova peca adicionada ao final da fila.\n");
+            case 2: {
+                struct Peca frente = desenfileirar(&fila);
+                if (frente.id != -1) {
+                    empilhar(&pilha, frente);
+                    enfileirar(&fila, gerarPeca(proximoId++)); // repõe a fila
+                }
                 break;
+            }
+
+            case 3: {
+                struct Peca usada = desempilhar(&pilha);
+                if (usada.id != -1) {
+                    printf("Peca usada da reserva: %c | ID: %d\n", usada.nome, usada.id);
+                }
+                break;
+            }
 
             case 0:
                 printf("Encerrando o programa...\n");
@@ -137,6 +211,10 @@ int main() {
             default:
                 printf("Opcao invalida!\n");
         }
+
+        // Exibe o estado atual das estruturas
+        exibirFila(&fila);
+        exibirPilha(&pilha);
 
     } while (opcao != 0);
 
